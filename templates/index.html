@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-600">Domain Finder</h1>
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-6 text-center">
+                <div class="flex flex-col md:flex-row gap-2 justify-center mb-4">
+                    <input id="prefix" type="text" maxlength="10" placeholder="Prefix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input id="suffix" type="text" maxlength="10" placeholder="Suffix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button onclick="startStream(2)" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200 mr-2">Alle 2-Zeichen-Domains prüfen</button>
+                <button onclick="startStream(3)" class="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-200">Alle 3-Buchstaben-Domains prüfen</button>
+            </div>
+            <div class="mb-8 text-center">
+                <div class="flex flex-col md:flex-row gap-2 justify-center mb-2">
+                    <input id="single-domain" type="text" maxlength="63" placeholder="Wunschdomain (ohne .de)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="checkSingleDomain()" class="bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 transition duration-200">Domain prüfen</button>
+                </div>
+                <div id="single-domain-result" class="mt-2 text-lg"></div>
+            </div>
+            <div id="loading" class="hidden mt-4 text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Suche läuft...</p>
+                <div id="progress" class="mt-2 text-sm text-gray-700"></div>
+            </div>
+            <div id="summary" class="hidden mt-4 text-center text-blue-700 font-semibold"></div>
+            <div id="results" class="mt-6">
+                <div id="domain-results" class="mb-6">
+                    <h2 class="text-xl font-semibold mb-3">Verfügbare Domains</h2>
+                    <div class="results-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let eventSource = null;
+        let checked = 0;
+        let total = 0;
+        function startStream(length) {
+            clearResults();
+            document.getElementById('summary').classList.add('hidden');
+            if (eventSource) {
+                eventSource.close();
+            }
+            document.getElementById('loading').classList.remove('hidden');
+            checked = 0;
+            total = length === 2 ? 36*36 : 26*26*26;
+            updateProgress();
+            const prefix = encodeURIComponent(document.getElementById('prefix').value.trim());
+            const suffix = encodeURIComponent(document.getElementById('suffix').value.trim());
+            let url = `/stream?length=${length}`;
+            if (prefix) url += `&prefix=${prefix}`;
+            if (suffix) url += `&suffix=${suffix}`;
+            eventSource = new EventSource(url);
+            eventSource.onmessage = function(event) {
+                checked++;
+                updateProgress();
+                const data = JSON.parse(event.data);
+                if (data.available) {
+                    addResult(data);
+                }
+            };
+            eventSource.onerror = function() {
+                document.getElementById('loading').classList.add('hidden');
+                if (eventSource) eventSource.close();
+                showSummary();
+            };
+        }
+        function updateProgress() {
+            document.getElementById('progress').textContent = `${checked} / ${total} geprüft`;
+        }
+        function clearResults() {
+            document.querySelectorAll('.results-list').forEach(el => el.innerHTML = '');
+        }
+        function addResult(result) {
+            const container = document.querySelector('.results-list');
+            const div = document.createElement('div');
+            div.className = 'p-2 border-b flex justify-between items-center';
+            div.innerHTML = `
+                <span class="font-mono">${result.domain}</span>
+                <span class="text-green-500">Verfügbar</span>
+                <a href="https://cc.bekserver.de/checkdomain/domain/${result.domain}" target="_blank" rel="noopener" class="ml-4 bg-blue-600 hover:bg-blue-800 text-white px-3 py-1 rounded text-sm">Domain registrieren</a>
+            `;
+            container.appendChild(div);
+        }
+        function showSummary() {
+            const summary = document.getElementById('summary');
+            summary.textContent = `Suche abgeschlossen: ${checked} Domains geprüft.`;
+            summary.classList.remove('hidden');
+        }
+        async function checkSingleDomain() {
+            const name = document.getElementById('single-domain').value.trim().toLowerCase();
+            const resultDiv = document.getElementById('single-domain-result');
+            resultDiv.textContent = '';
+            if (!name.match(/^[a-z0-9-]{1,63}$/)) {
+                resultDiv.textContent = 'Bitte einen gültigen Domainnamen eingeben (nur a-z, 0-9, -)';
+                resultDiv.className = 'mt-2 text-lg text-red-600';
+                return;
+            }
+            resultDiv.textContent = 'Prüfe...';
+            resultDiv.className = 'mt-2 text-lg text-gray-700';
+            try {
+                const response = await fetch(`/checkdomain?name=${encodeURIComponent(name)}`);
+                const data = await response.json();
+                if (data.available) {
+                    resultDiv.innerHTML = `<span class='text-green-600 font-semibold'>${name}.de ist verfügbar!</span> <a href='https://cc.bekserver.de/checkdomain/domain/${name}.de' target='_blank' rel='noopener' class='ml-2 bg-blue-600 hover:bg-blue-800 text-white px-3 py-1 rounded text-sm'>Domain registrieren</a>`;
+                } else {
+                    resultDiv.innerHTML = `<span class='text-red-600 font-semibold'>${name}.de ist nicht verfügbar.</span>`;
+                }
+            } catch (e) {
+                resultDiv.textContent = 'Fehler bei der Prüfung.';
+                resultDiv.className = 'mt-2 text-lg text-red-600';
+            }
+        }
+    </script>
+</body>
+</html> 
