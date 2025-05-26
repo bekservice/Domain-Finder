@@ -8,20 +8,49 @@ app = Flask(__name__)
 
 # Hilfsfunktion: Generiere alle 2- oder 3-Buchstaben-Kombinationen (keine Wiederholung)
 def generate_all_domains(length, prefix='', suffix=''):
+    if length == 1:
+        alphabet = list(string.ascii_lowercase) + list(string.digits)
+        if prefix and not suffix:
+            # Prefix + 1 Zeichen
+            return [f"{prefix}{c}.de" for c in alphabet]
+        elif suffix and not prefix:
+            # 1 Zeichen + Suffix
+            return [f"{c}{suffix}.de" for c in alphabet]
+        elif prefix and suffix:
+            # Prefix + 1 Zeichen + Suffix
+            return [f"{prefix}{c}{suffix}.de" for c in alphabet]
+        else:
+            # Ohne Prefix/Suffix keine 1-Zeichen-Domains
+            return []
     if length == 2:
         alphabet = list(string.ascii_lowercase) + list(string.digits)
+        if prefix and not suffix:
+            # Prefix + 2 Zeichen
+            combinations = itertools.product(alphabet, repeat=2)
+            return [f"{prefix}{''.join(combo)}.de" for combo in combinations]
+        elif suffix and not prefix:
+            # 2 Zeichen + Suffix
+            combinations = itertools.product(alphabet, repeat=2)
+            return [f"{''.join(combo)}{suffix}.de" for combo in combinations]
+        elif prefix and suffix:
+            # Prefix + 2 Zeichen + Suffix (insgesamt länger als 2, daher keine Domains)
+            return []
+        else:
+            # Nur 2 Zeichen
+            combinations = itertools.product(alphabet, repeat=2)
+            return [f"{''.join(combo)}.de" for combo in combinations]
     else:
         alphabet = list(string.ascii_lowercase)
-    core_length = length
-    if prefix:
-        core_length -= len(prefix)
-    if suffix:
-        core_length -= len(suffix)
-    if core_length <= 0:
-        # Prefix+Suffix ist zu lang, keine Domains möglich
-        return []
-    combinations = itertools.product(alphabet, repeat=core_length)
-    return [f"{prefix}{''.join(combo)}{suffix}.de" for combo in combinations]
+        core_length = length
+        if prefix:
+            core_length -= len(prefix)
+        if suffix:
+            core_length -= len(suffix)
+        if core_length <= 0:
+            # Prefix+Suffix ist zu lang, keine Domains möglich
+            return []
+        combinations = itertools.product(alphabet, repeat=core_length)
+        return [f"{prefix}{''.join(combo)}{suffix}.de" for combo in combinations]
 
 def check_domain_availability(domain):
     try:

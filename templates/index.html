@@ -12,11 +12,12 @@
         <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
             <div class="mb-6 text-center">
                 <div class="flex flex-col md:flex-row gap-2 justify-center mb-4">
-                    <input id="prefix" type="text" maxlength="10" placeholder="Prefix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <input id="suffix" type="text" maxlength="10" placeholder="Suffix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input id="prefix" type="text" maxlength="10" placeholder="Prefix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="toggleOneCharButton()">
+                    <input id="suffix" type="text" maxlength="10" placeholder="Suffix (optional)" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="toggleOneCharButton()">
                 </div>
                 <button onclick="startStream(2)" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200 mr-2">Alle 2-Zeichen-Domains prüfen</button>
                 <button onclick="startStream(3)" class="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-200">Alle 3-Buchstaben-Domains prüfen</button>
+                <button id="one-char-btn" onclick="startStream(1)" class="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition duration-200 ml-2 hidden">Alle 1-Zeichen-Domains prüfen</button>
             </div>
             <div class="mb-8 text-center">
                 <div class="flex flex-col md:flex-row gap-2 justify-center mb-2">
@@ -43,6 +44,16 @@
         let eventSource = null;
         let checked = 0;
         let total = 0;
+        function toggleOneCharButton() {
+            const prefix = document.getElementById('prefix').value.trim();
+            const suffix = document.getElementById('suffix').value.trim();
+            const btn = document.getElementById('one-char-btn');
+            if (prefix.length > 0 || suffix.length > 0) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
         function startStream(length) {
             clearResults();
             document.getElementById('summary').classList.add('hidden');
@@ -51,7 +62,13 @@
             }
             document.getElementById('loading').classList.remove('hidden');
             checked = 0;
-            total = length === 2 ? 36*36 : 26*26*26;
+            if (length === 1) {
+                total = 36; // 26 Buchstaben + 10 Zahlen
+            } else if (length === 2) {
+                total = 36*36;
+            } else {
+                total = 26*26*26;
+            }
             updateProgress();
             const prefix = encodeURIComponent(document.getElementById('prefix').value.trim());
             const suffix = encodeURIComponent(document.getElementById('suffix').value.trim());
@@ -119,6 +136,8 @@
                 resultDiv.className = 'mt-2 text-lg text-red-600';
             }
         }
+        // Initialer Aufruf, falls Felder vorausgefüllt sind
+        toggleOneCharButton();
     </script>
 </body>
 </html> 
